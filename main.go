@@ -48,14 +48,15 @@ func main() {
 	klog.Info("Clientset created successfully")
 
 	factory := informers.NewSharedInformerFactory(clientset, 0)
-	deployInformer := factory.Apps().V1().Deployments().Informer()
+	deployInformer := factory.Apps().V1().Deployments()
+	serviceInformer := factory.Core().V1().Services()
 
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "deploy-expose")
-	ctrl := controller.NewController(clientset, factory, deployInformer, queue)
+	ctrl := controller.NewController(clientset, deployInformer.Lister(), serviceInformer.Lister(), queue)
 
 	klog.Info("Adding event handlers for Deployments")
 
-	_, err = deployInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = deployInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err != nil {
@@ -92,7 +93,7 @@ func main() {
 	factory.Start(ctrl.StopCh)
 
 	klog.Info("Waiting for caches to sync...")
-	if !cache.WaitForCacheSync(ctrl.StopCh, deployInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctrl.StopCh, deployInformer.Informer().HasSynced) {
 		klog.Fatalf("Cache did not sync")
 	}
 	klog.Info("Caches synced successfully")

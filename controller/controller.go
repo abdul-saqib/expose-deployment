@@ -11,10 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	appslisters "k8s.io/client-go/listers/apps/v1"
-	corelisters "k8s.io/client-go/listers/core/v1"
+	appsInformer "k8s.io/client-go/listers/apps/v1"
+	coreInformer "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -22,19 +21,17 @@ import (
 
 type Controller struct {
 	clientset     kubernetes.Interface
-	deployLister  appslisters.DeploymentLister
-	serviceLister corelisters.ServiceLister
+	deployLister  appsInformer.DeploymentLister
+	serviceLister coreInformer.ServiceLister
 	queue         workqueue.RateLimitingInterface
 	StopCh        chan struct{}
 }
 
-func NewController(clientset kubernetes.Interface, factory informers.SharedInformerFactory, informer cache.SharedIndexInformer, queue workqueue.RateLimitingInterface) *Controller {
-	deployInformer := factory.Apps().V1().Deployments()
-	serviceInformer := factory.Core().V1().Services()
+func NewController(clientset kubernetes.Interface, deployInformer appsInformer.DeploymentLister, serviceInformer coreInformer.ServiceLister, queue workqueue.RateLimitingInterface) *Controller {
 	return &Controller{
 		clientset:     clientset,
-		deployLister:  deployInformer.Lister(),
-		serviceLister: serviceInformer.Lister(),
+		deployLister:  deployInformer,
+		serviceLister: serviceInformer,
 		queue:         queue,
 		StopCh:        make(chan struct{}),
 	}
